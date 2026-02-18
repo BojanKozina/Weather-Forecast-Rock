@@ -33,9 +33,8 @@ public:
         display.display();
     }
 
-
-    //Based on the enum in Rock_States.h its going to return one of the bitmaps (ie the face of the rock)
-    const unsigned char* getFaceBitmap(Rock_States state)
+    // Based on the enum in Rock_States.h its going to return one of the bitmaps (ie the face of the rock)
+    const unsigned char *getFaceBitmap(Rock_States state)
     {
 
         switch (state)
@@ -62,8 +61,27 @@ public:
             return Rock_Windy_Rain;
         case Rock_States::COLD_RAIN:
             return Rock_Cold_Rain;
+        case Rock_States::NO_WIFI:
+            return Rock_No_Wifi;
 
-        default: return Rock_Neutral;
+        // Joke faces
+        case Rock_States::POU:
+            return Rock_Pou;
+        case Rock_States::ALIEN:
+            return Rock_Alien;
+        case Rock_States::ROBLOX:
+            return Rock_Roblox;
+        case Rock_States::ROCK_ON:
+            return Rock_Rock_On;
+        case Rock_States::NERD:
+            return Rock_Nerd;
+        case Rock_States::DOG:
+            return Rock_Dog;
+        case Rock_States::COMPLIMENT:
+            return Rock_Compliment;
+
+        default:
+            return Rock_Neutral;
         }
     }
 
@@ -72,16 +90,42 @@ public:
         const unsigned char *face = getFaceBitmap(state);
 
         display.clearDisplay();
-        
+
         display.drawBitmap(0, 0, face, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
-        
+
         display.display();
     }
 
     void shuffleStates()
     {
-        int randomFace= random(11);
+        int randomFace = random(19);
         showFace(static_cast<Rock_States>(randomFace));
         delay(3000);
+    }
+
+    void showData(float temperature, float light, float pressure, bool rain)
+    {
+        display.clearDisplay();
+        display.setTextSize(1);
+
+        display.drawBitmap(0, 0, Data_Screen, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
+        display.setTextColor(SSD1306_WHITE);
+
+        display.setCursor(45, 5);
+        display.print(temperature, 1);
+        display.print("  C");
+
+        display.setCursor(45, 21);
+        display.print(pressure, 0);
+        display.print(" hPa");
+
+        display.setCursor(45, 37);
+        display.print(light, 1);
+        display.print("  %");
+
+        display.setCursor(45, 53);
+        display.print(rain ? "Raining" : "No Rain");
+
+        display.display();
     }
 };

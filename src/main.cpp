@@ -15,11 +15,13 @@ void setup()
   
   theRock.begin();
   
+  theRock.showData(25.5, 60.0, 1013.25, false);
 
 }
 
 void loop()
 {
-  theRock.shuffleStates();
+
+  
   
 }
