@@ -47,7 +47,8 @@ public:
 
         if (theNetwork.connectWiFi())
             theNetwork.connectMQTT();
-        else{
+        else
+        {
             showFace(Rock_States::NO_WIFI); // show the dino!
             delay(5000);
         }
@@ -101,6 +102,14 @@ public:
             return Rock_Dog;
         case Rock_States::COMPLIMENT:
             return Rock_Compliment;
+        case Rock_States::BSOD:
+            return Rock_BSOD;
+        case Rock_States::MARIO:
+            return Rock_Mario;
+        case Rock_States::AMOGUS:
+            return Rock_Amogus;
+        case Rock_States::ZEN:
+            return Rock_Zen;
 
         default:
             return Rock_Neutral;
@@ -169,12 +178,11 @@ public:
 
         Rock_States currentState;
 
-
-        //This part is totally uncessary and its just used to show the joke faces randomly
+        // This part is totally uncessary and its just used to show the joke faces randomly
         int easterEggChance = random(10);
         if (easterEggChance == 0)
         {
-            int randomJokeFace = random(static_cast<int>(Rock_States::JOKE_START), static_cast<int>(Rock_States::COUNT));
+            int randomJokeFace = random(static_cast<int>(Rock_States::JOKE_START+1), static_cast<int>(Rock_States::COUNT));
             currentState = static_cast<Rock_States>(randomJokeFace);
         }
         else
@@ -205,6 +213,13 @@ public:
     void shuffleStates()
     {
         int randomFace = random(static_cast<int>(Rock_States::COUNT));
+        showFace(static_cast<Rock_States>(randomFace));
+        delay(3000);
+    }
+
+    void shuffleJokeFaces()
+    {
+        int randomFace = random(static_cast<int>(Rock_States::JOKE_START+1), static_cast<int>(Rock_States::COUNT));
         showFace(static_cast<Rock_States>(randomFace));
         delay(3000);
     }

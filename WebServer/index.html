@@ -515,7 +515,7 @@
     <div class="oled">
       <div>
         <div class="oled-screen">
-          <img id="rockFace" src="faces/Rock_No.png" alt="rock face">
+          <img id="rockFace" src="faces/Rock_Connecting.png" alt="rock face">
         </div>
         <div class="rock-label-row">
           <div class="rock-label" id="rockLabel">WAITING</div>
@@ -608,6 +608,10 @@
       'Rock_Nerd',            // 17 NERD
       'Rock_Dog',             // 18 DOG
       'Rock_Compliment',      // 19 COMPLIMENT
+      'Rock_BSOD',            // 20 BSOD
+      'Rock_Mario',           // 21 MARIO
+      'Rock_Amogus',          // 22 AMOGUS
+      'Rock_Zen',             // 23 ZEN
     ];
 
     const STATE_DISPLAY = {
@@ -630,6 +634,10 @@
       'Rock_Nerd': { label: 'NERD', desc: 'ermmmmm' },
       'Rock_Dog': { label: 'DOG', desc: 'woof! woof woof!' },
       'Rock_Compliment': { label: 'YOU ROCK', desc: 'you are awesome!' },
+      'Rock_BSOD': { label: 'BSOD', desc: 'memory leak' },
+      'Rock_Mario': { label: 'MARIO', desc: 'let\'s a go!' },
+      'Rock_Amogus': { label: 'AMOGUS', desc: 'imposter' },
+      'Rock_Zen': { label: 'ZEN', desc: 'inner peace' },
     };
 
     const FACE_LIST = [
@@ -652,6 +660,10 @@
       { key: 'Rock_Rock_On', name: 'Rock On', hint: '??? easter egg', type: 'joke' },
       { key: 'Rock_Nerd', name: 'Nerd', hint: '??? easter egg', type: 'joke' },
       { key: 'Rock_Dog', name: 'Dog', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_BSOD', name: 'BSOD', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_Mario', name: 'Mario', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_Amogus', name: 'Amogus', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_Zen', name: 'Zen', hint: '??? easter egg', type: 'joke' },
     ];
 
     let data = { temperature: null, pressure: null, light: null, rain: null, wind: null };
