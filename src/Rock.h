@@ -31,11 +31,10 @@ public:
         theSensors.begin();
         theNetwork.setCredentials(ssid, password, mqttServer);
 
-        if (!theDisplay.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
+        while (!theDisplay.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
         {
             Serial.println(F("SSD1306 allocation failed"));
-            for (;;)
-                ;
+            delay(2000);
         }
 
         randomSeed(esp_random());
@@ -160,7 +159,7 @@ public:
             return Rock_States::COLD;
 
         // Nice weather
-        if (theSensors.getLightLevel() > 80 && theSensors.getTemperature() > 20)
+        if (theSensors.getLightLevel() > 70 && theSensors.getTemperature() > 20)
             return Rock_States::HAPPY;
 
         // Default
