@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Rock</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Silkscreen', monospace;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+      image-rendering: pixelated;
+    }
+
+    .screen {
+      width: 100%;
+      max-width: 700px;
+      background: #000;
+      border: 2px solid #fff;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #fff;
+      margin-bottom: 16px;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+    }
+
+    .status {
+      font-size: 10px;
+      margin-top: 4px;
+      color: #666;
+    }
+
+    .status.live {
+      color: #fff;
+    }
+
+    .blink {
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+    }
+
+    .oled {
+      display: flex;
+      justify-content: center;
+      padding: 16px 0;
+      border-bottom: 2px solid #fff;
+      margin-bottom: 16px;
+    }
+
+    .oled-screen {
+      width: 256px;
+      height: 128px;
+      background: #000;
+      border: 2px solid #444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .oled-screen img {
+      width: 256px;
+      height: 128px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .rock-label-row {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .rock-label {
+      font-size: 14px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .rock-desc {
+      font-size: 9px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .data-section {
+      padding: 12px 0;
+      border-bottom: 2px solid #fff;
+      margin-bottom: 16px;
+    }
+
+    .data-row {
+      display: flex;
+      align-items: center;
+      padding: 6px 0;
+      gap: 16px;
+    }
+
+    .data-icon {
+      width: 24px;
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+      flex-shrink: 0;
+    }
+
+    .data-label {
+      width: 80px;
+      font-size: 10px;
+      color: #666;
+      letter-spacing: 1px;
+      flex-shrink: 0;
+    }
+
+    .data-value {
+      font-size: 16px;
+      flex: 1;
+      transition: all 0.1s step-end;
+    }
+
+    .data-value.flash {
+      color: #000;
+      background: #fff;
+    }
+
+    .data-trend {
+      font-size: 9px;
+      color: #666;
+      width: 60px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .data-trend.up {
+      color: #fff;
+    }
+
+    .data-trend.down {
+      color: #fff;
+    }
+
+    .chart-section {
+      padding: 12px 0;
+      border-bottom: 2px solid #fff;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      letter-spacing: 2px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .unlock-counter {
+      float: right;
+      font-size: 13px;
+      color: #666;
+    }
+
+    .unlock-counter span {
+      color: #fff;
+    }
+
+    .chart-wrap {
+      position: relative;
+      margin-left: 32px;
+      margin-right: 4px;
+    }
+
+    .chart-container {
+      height: 120px;
+      border-left: 1px solid #444;
+      border-bottom: 1px solid #444;
+      position: relative;
+    }
+
+    .chart-y-labels {
+      position: absolute;
+      left: -32px;
+      top: 0;
+      width: 28px;
+      height: 120px;
+    }
+
+    .chart-y-label {
+      position: absolute;
+      right: 0;
+      font-size: 12px;
+      color: #444;
+      transform: translateY(-50%);
+    }
+
+    .chart-canvas {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+
+    .gallery-section {
+      padding: 12px 0;
+      border-bottom: 2px solid #fff;
+      margin-bottom: 16px;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .gallery-item {
+      text-align: center;
+      font-size: 15px;
+      position: relative;
+    }
+
+    .gallery-img-wrap {
+      position: relative;
+      border: 1px solid #222;
+      background: #000;
+      aspect-ratio: 2/1;
+      overflow: hidden;
+      transition: border-color 0.1s step-end;
+    }
+
+    .gallery-img-wrap img {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
+    }
+
+    .gallery-item.locked .gallery-img-wrap {
+      border-color: #111;
+    }
+
+    .gallery-item.locked .gallery-img-wrap img {
+      filter: brightness(0);
+    }
+
+    .gallery-item.locked .lock-overlay {
+      display: flex;
+    }
+
+    .lock-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #333;
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    .gallery-item.unlocked .gallery-img-wrap {
+      border-color: #444;
+    }
+
+    .gallery-item.unlocked .gallery-img-wrap:hover {
+      border-color: #fff;
+    }
+
+    .gallery-item.active .gallery-img-wrap {
+      border-color: #fff;
+      box-shadow: 0 0 0 1px #fff;
+    }
+
+    @keyframes unlockFlash {
+      0% {
+        filter: brightness(0);
+      }
+
+      25% {
+        filter: brightness(3);
+      }
+
+      50% {
+        filter: brightness(0);
+      }
+
+      75% {
+        filter: brightness(3);
+      }
+
+      100% {
+        filter: brightness(1);
+      }
+    }
+
+    .gallery-item.just-unlocked .gallery-img-wrap img {
+      animation: unlockFlash 0.8s step-end forwards;
+    }
+
+    @keyframes unlockBorder {
+      0% {
+        border-color: #111;
+      }
+
+      25% {
+        border-color: #fff;
+      }
+
+      50% {
+        border-color: #111;
+      }
+
+      75% {
+        border-color: #fff;
+      }
+
+      100% {
+        border-color: #444;
+      }
+    }
+
+    .gallery-item.just-unlocked .gallery-img-wrap {
+      animation: unlockBorder 0.8s step-end forwards;
+    }
+
+    .gallery-name {
+      font-size: 18px;
+      color: #444;
+      margin-top: 5px;
+      letter-spacing: 0.5px;
+    }
+
+    .gallery-item.locked .gallery-name {
+      color: #222;
+    }
+
+    .gallery-hint {
+      font-size: 9px;
+      color: #222;
+      margin-top: 5px;
+      height: 10px;
+    }
+
+    .gallery-item.locked:hover .gallery-hint {
+      color: #444;
+    }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #000;
+      border: 2px solid #fff;
+      padding: 12px 24px;
+      font-family: 'Silkscreen', monospace;
+      font-size: 12px;
+      z-index: 100;
+      text-align: center;
+      animation: toastIn 0.2s step-end, toastOut 0.2s step-end 2.5s forwards;
+    }
+
+    .toast-label {
+      font-size: 8px;
+      color: #666;
+      letter-spacing: 2px;
+      margin-bottom: 4px;
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes toastOut {
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0;
+      }
+    }
+
+    .log-section {
+      padding: 12px 0;
+    }
+
+    .log-container {
+      max-height: 180px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #444 #000;
+    }
+
+    .log-container::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .log-container::-webkit-scrollbar-track {
+      background: #000;
+    }
+
+    .log-container::-webkit-scrollbar-thumb {
+      background: #444;
+    }
+
+    .log-row {
+      font-size: 9px;
+      padding: 3px 0;
+      border-bottom: 1px solid #111;
+      display: flex;
+      gap: 6px;
+    }
+
+    .log-time {
+      color: #444;
+      width: 65px;
+      flex-shrink: 0;
+    }
+
+    .log-state {
+      color: #fff;
+      width: 85px;
+      flex-shrink: 0;
+    }
+
+    .log-data {
+      color: #666;
+      flex: 1;
+    }
+
+    .last-update {
+      text-align: center;
+      font-size: 8px;
+      color: #333;
+      margin-top: 12px;
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 620px) {
+      .screen {
+        width: 100%;
+        max-width: 700px;
+        background: #000;
+        border: 2px solid #fff;
+        padding: 20px;
+      }
+
+      .oled-screen {
+        width: 192px;
+        height: 96px;
+      }
+
+      .oled-screen img {
+        width: 192px;
+        height: 96px;
+      }
+
+      .data-value {
+        font-size: 13px;
+      }
+
+      .gallery-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="screen">
+    <div class="header">
+      <h1>The Rock</h1>
+      <div class="status" id="status"><span class="blink">_</span> OFFLINE</div>
+    </div>
+
+    <div class="oled">
+      <div>
+        <div class="oled-screen">
+          <img id="rockFace" src="faces/Rock_No.png" alt="rock face">
+        </div>
+        <div class="rock-label-row">
+          <div class="rock-label" id="rockLabel">WAITING</div>
+          <div class="rock-desc" id="rockDesc">connecting...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="data-section">
+      <div class="data-row">
+        <div class="data-icon">🌡</div>
+        <div class="data-label">TEMP</div>
+        <div class="data-value" id="temp">--.- °C</div>
+        <div class="data-trend" id="tempTrend"></div>
+      </div>
+      <div class="data-row">
+        <div class="data-icon">v</div>
+        <div class="data-label">PRESSURE</div>
+        <div class="data-value" id="pressure">---- hPa</div>
+        <div class="data-trend" id="pressureTrend"></div>
+      </div>
+      <div class="data-row">
+        <div class="data-icon">𖤓</div>
+        <div class="data-label">LIGHT</div>
+        <div class="data-value" id="light">--.- %</div>
+        <div class="data-trend" id="lightTrend"></div>
+      </div>
+      <div class="data-row">
+        <div class="data-icon">⛈</div>
+        <div class="data-label">RAIN</div>
+        <div class="data-value" id="rain">---</div>
+        <div class="data-trend"></div>
+      </div>
+      <div class="data-row">
+        <div class="data-icon">༄</div>
+        <div class="data-label">WIND</div>
+        <div class="data-value" id="wind">---</div>
+        <div class="data-trend"></div>
+      </div>
+    </div>
+
+    <div class="chart-section">
+      <div class="section-title">> TEMPERATURE</div>
+      <div class="chart-wrap">
+        <div class="chart-y-labels" id="chartYLabels"></div>
+        <div class="chart-container">
+          <canvas id="chart" class="chart-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="gallery-section">
+      <div class="section-title">
+        > ROCK FACES
+        <span class="unlock-counter"><span id="unlockCount">0</span> / <span id="totalCount">0</span> UNLOCKED</span>
+      </div>
+      <div class="gallery-grid" id="gallery"></div>
+    </div>
+
+    <div class="log-section">
+      <div class="section-title">> LOG</div>
+      <div class="log-container" id="log"></div>
+    </div>
+
+    <div class="last-update">LAST UPDATE: <span id="lastUpdate">NEVER</span></div>
+  </div>
+
+  <script>
+    const MQTT_HOST = window.location.hostname;
+    const MQTT_PORT = 9001;
+
+    const STATE_NAMES = [
+      'Rock_Glasses',         // 0  GLASSES
+      'Rock_Hot',             // 1  HOT
+      'Rock_Windy',           // 2  WINDY
+      'Rock_Raining',         // 3  RAINING
+      'Rock_Windy_Raining',   // 4  WINDY_RAIN
+      'Rock_Cold_Rain',       // 5  COLD_RAIN
+      'Rock_Cold',            // 6  COLD
+      'Rock_Snowing',         // 7  SNOWING
+      'Rock_Happy',           // 8  HAPPY
+      'Rock_Sleeping',        // 9  SLEEPING
+      'Rock_Neutral',         // 10 NEUTRAL
+      'Rock_No_Wifi',         // 11 NO_WIFI
+      null,                   // 12 JOKE_START
+      'Rock_Pou',             // 13 POU
+      'Rock_Alien',           // 14 ALIEN
+      'Rock_Roblox',          // 15 ROBLOX
+      'Rock_Rock_On',         // 16 ROCK_ON
+      'Rock_Nerd',            // 17 NERD
+      'Rock_Dog',             // 18 DOG
+      'Rock_Compliment',      // 19 COMPLIMENT
+    ];
+
+    const STATE_DISPLAY = {
+      'Rock_Sleeping': { label: 'SLEEPING', desc: 'zzz...' },
+      'Rock_Hot': { label: 'HOT', desc: 'melting...' },
+      'Rock_Cold': { label: 'COLD', desc: 'bundle up' },
+      'Rock_Raining': { label: 'RAINING', desc: 'grab an a umbrella!' },
+      'Rock_Happy': { label: 'HAPPY', desc: 'perfect day!' },
+      'Rock_Neutral': { label: 'NEUTRAL', desc: 'its okay' },
+      'Rock_Snowing': { label: 'SNOWING', desc: 'Snow day!' },
+      'Rock_Windy': { label: 'WINDY', desc: 'whoooosh' },
+      'Rock_Glasses': { label: 'SUNNY', desc: 'future so bright, have to wear shades' },
+      'Rock_Windy_Raining': { label: 'STORM', desc: 'take cover!' },
+      'Rock_Cold_Rain': { label: 'COLD RAIN', desc: 'worst combo' },
+      'Rock_No_Wifi': { label: 'NO WIFI', desc: 'connection lost' },
+      'Rock_Pou': { label: 'POU', desc: 'njah!' },
+      'Rock_Alien': { label: 'ALIEN', desc: 'hey did you get your photos printed?' },
+      'Rock_Roblox': { label: 'ROBLOX', desc: 'oof' },
+      'Rock_Rock_On': { label: 'ROCK ON', desc: 'sweet child o\' mine' },
+      'Rock_Nerd': { label: 'NERD', desc: 'ermmmmm' },
+      'Rock_Dog': { label: 'DOG', desc: 'woof! woof woof!' },
+      'Rock_Compliment': { label: 'YOU ROCK', desc: 'you are awesome!' },
+    };
+
+    const FACE_LIST = [
+      { key: 'Rock_Neutral', name: 'Neutral', hint: 'Nothing interesting here', type: 'weather' },
+      { key: 'Rock_Happy', name: 'Happy', hint: 'Nice weather', type: 'weather' },
+      { key: 'Rock_Glasses', name: 'Sunny', hint: 'Might need shades ', type: 'weather' },
+      { key: 'Rock_Hot', name: 'Hot', hint: 'Is it just me or am i melting?', type: 'weather' },
+      { key: 'Rock_Cold', name: 'Cold', hint: 'Bundle up', type: 'weather' },
+      { key: 'Rock_Raining', name: 'Raining', hint: 'Better take an umbrella', type: 'weather' },
+      { key: 'Rock_Cold_Rain', name: 'Cold Rain', hint: 'Anything but this', type: 'weather' },
+      { key: 'Rock_Snowing', name: 'Snowing', hint: 'Snowball fight!', type: 'weather' },
+      { key: 'Rock_Windy', name: 'Windy', hint: 'And i will huff and puff', type: 'weather' },
+      { key: 'Rock_Windy_Raining', name: 'Storm', hint: 'Run for your life!', type: 'weather' },
+      { key: 'Rock_Sleeping', name: 'Sleeping', hint: 'Im just going to take a nap', type: 'weather' },
+      { key: 'Rock_No_Wifi', name: 'No WiFi', hint: 'There are dinosaurs?', type: 'special' },
+      { key: 'Rock_Compliment', name: 'You Rock!', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_Pou', name: 'Pou', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_Alien', name: 'Alien', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_Roblox', name: 'Roblox', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_Rock_On', name: 'Rock On', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_Nerd', name: 'Nerd', hint: '??? easter egg', type: 'joke' },
+      { key: 'Rock_Dog', name: 'Dog', hint: '??? easter egg', type: 'joke' },
+    ];
+
+    let data = { temperature: null, pressure: null, light: null, rain: null, wind: null };
+    let prev = { temperature: null, pressure: null, light: null, rain: null, wind: null };
+    let tempHistory = [];
+    let logHistory = [];
+    let currentStateName = 'Rock_Neutral';
+    let unlockedFaces = new Set();
+
+    // Load unlocked
+    try {
+      const saved = localStorage.getItem('weatherrock_unlocked');
+      if (saved) unlockedFaces = new Set(JSON.parse(saved));
+    } catch (e) { }
+
+    function saveUnlocked() {
+      try { localStorage.setItem('weatherrock_unlocked', JSON.stringify([...unlockedFaces])); } catch (e) { }
+    }
+
+    function unlockFace(faceKey) {
+      if (unlockedFaces.has(faceKey)) return false;
+      unlockedFaces.add(faceKey);
+      saveUnlocked();
+
+      const item = document.getElementById('gal_' + faceKey);
+      if (item) {
+        item.classList.remove('locked');
+        item.classList.add('unlocked', 'just-unlocked');
+        setTimeout(() => item.classList.remove('just-unlocked'), 900);
+
+        const face = FACE_LIST.find(f => f.key === faceKey);
+        if (face) {
+          const nameEl = item.querySelector('.gallery-name');
+          if (nameEl) nameEl.textContent = face.name;
+          const hintEl = item.querySelector('.gallery-hint');
+          if (hintEl) hintEl.textContent = '';
+        }
+      }
+
+      showToast(faceKey);
+      updateUnlockCounter();
+      return true;
+    }
+
+    function showToast(faceKey) {
+      const face = FACE_LIST.find(f => f.key === faceKey);
+      const name = face ? face.name : faceKey;
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<div class="toast-label">NEW FACE UNLOCKED</div>${name.toUpperCase()}`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function updateUnlockCounter() {
+      document.getElementById('unlockCount').textContent = unlockedFaces.size;
+      document.getElementById('totalCount').textContent = FACE_LIST.length;
+    }
+
+    function buildGallery() {
+      const grid = document.getElementById('gallery');
+
+      FACE_LIST.forEach(face => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+        item.id = 'gal_' + face.key;
+
+        const isUnlocked = unlockedFaces.has(face.key);
+        item.classList.add(isUnlocked ? 'unlocked' : 'locked');
+
+        const wrap = document.createElement('div');
+        wrap.className = 'gallery-img-wrap';
+
+        const img = document.createElement('img');
+        img.src = 'faces/' + face.key + '.png';
+        img.alt = face.name;
+
+        const lock = document.createElement('div');
+        lock.className = 'lock-overlay';
+        lock.textContent = '?';
+
+        wrap.appendChild(img);
+        wrap.appendChild(lock);
+
+        const name = document.createElement('div');
+        name.className = 'gallery-name';
+        name.textContent = isUnlocked ? face.name : '???';
+
+        const hint = document.createElement('div');
+        hint.className = 'gallery-hint';
+        hint.textContent = isUnlocked ? '' : face.hint;
+
+        item.appendChild(wrap);
+        item.appendChild(name);
+        item.appendChild(hint);
+        grid.appendChild(item);
+      });
+
+      updateUnlockCounter();
+    }
+
+    function setFace(faceKey) {
+      document.getElementById('rockFace').src = 'faces/' + faceKey + '.png';
+
+      const display = STATE_DISPLAY[faceKey] || { label: 'UNKNOWN', desc: '...' };
+      document.getElementById('rockLabel').textContent = display.label;
+      document.getElementById('rockDesc').textContent = display.desc;
+
+      document.querySelectorAll('.gallery-item').forEach(el => el.classList.remove('active'));
+      const galItem = document.getElementById('gal_' + faceKey);
+      if (galItem) galItem.classList.add('active');
+
+      unlockFace(faceKey);
+      currentStateName = faceKey;
+    }
+
+    // MQTT
+    const client = new Paho.Client(MQTT_HOST, MQTT_PORT, 'rock_' + Math.random().toString(16).substr(2, 6));
+
+    client.onConnectionLost = function () {
+      document.getElementById('status').innerHTML = '<span class="blink">_</span> OFFLINE';
+      document.getElementById('status').className = 'status';
+      setTimeout(mqttConnect, 3000);
+    };
+
+    client.onMessageArrived = function (msg) {
+      const topic = msg.destinationName.replace('rock/', '');
+      const val = msg.payloadString;
+      prev[topic] = data[topic];
+
+      if (topic === 'state') {
+        const stateIndex = parseInt(val);
+        const faceName = STATE_NAMES[stateIndex] || 'Rock_Neutral';
+        setFace(faceName);
+      }
+
+      if (topic === 'temperature') {
+        data.temperature = parseFloat(val);
+        updateVal('temp', data.temperature.toFixed(1) + ' C', 'tempTrend', data.temperature, prev.temperature);
+        tempHistory.push({ time: new Date(), value: data.temperature });
+        if (tempHistory.length > 40) tempHistory.shift();
+        drawChart();
+        addLog();
+      }
+      if (topic === 'pressure') {
+        data.pressure = parseFloat(val);
+        updateVal('pressure', data.pressure.toFixed(0) + ' hPa', 'pressureTrend', data.pressure, prev.pressure);
+      }
+      if (topic === 'light') {
+        data.light = parseFloat(val);
+        updateVal('light', data.light.toFixed(1) + ' %', 'lightTrend', data.light, prev.light);
+      }
+      if (topic === 'rain') {
+        data.rain = val === 'true';
+        flashVal('rain', data.rain ? 'YES' : 'NO');
+      }
+      if (topic === 'wind') {
+        data.wind = val === 'true';
+        flashVal('wind', data.wind ? 'YES' : 'NO');
+      }
+
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+    };
+
+    function mqttConnect() {
+      client.connect({
+        onSuccess: function () {
+          document.getElementById('status').innerHTML = '<span class="blink">_</span> LIVE';
+          document.getElementById('status').className = 'status live';
+          client.subscribe('rock/#');
+        },
+        onFailure: function () { setTimeout(mqttConnect, 5000); }
+      });
+    }
+
+    function updateVal(id, text, trendId, cur, pre) {
+      flashVal(id, text);
+      if (trendId && pre !== null && cur !== null) {
+        const el = document.getElementById(trendId);
+        const diff = cur - pre;
+        if (Math.abs(diff) < 0.1) { el.textContent = '= stable'; el.className = 'data-trend'; }
+        else if (diff > 0) { el.textContent = '^ +' + diff.toFixed(1); el.className = 'data-trend up'; }
+        else { el.textContent = 'v ' + diff.toFixed(1); el.className = 'data-trend down'; }
+      }
+    }
+
+    function flashVal(id, text) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.classList.add('flash');
+      setTimeout(() => el.classList.remove('flash'), 200);
+    }
+
+    // Chart
+    function drawChart() {
+      const canvas = document.getElementById('chart');
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      if (tempHistory.length < 2) {
+        ctx.fillStyle = '#333';
+        ctx.font = '11px Silkscreen, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('waiting for data...', w / 2, h / 2);
+        return;
+      }
+
+      const temps = tempHistory.map(e => e.value);
+      const min = Math.floor(Math.min(...temps) - 1);
+      const max = Math.ceil(Math.max(...temps) + 1);
+      const range = max - min || 1;
+
+      const labelsEl = document.getElementById('chartYLabels');
+      labelsEl.innerHTML = '';
+      for (let i = 0; i <= 4; i++) {
+        const val = max - (range / 4) * i;
+        const label = document.createElement('div');
+        label.className = 'chart-y-label';
+        label.style.top = ((i / 4) * h) + 'px';
+        label.textContent = val.toFixed(0);
+        labelsEl.appendChild(label);
+      }
+
+      ctx.strokeStyle = '#111';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = Math.floor((i / 4) * h) + 0.5;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      const px = 3;
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+      temps.forEach((temp, i) => {
+        const x = Math.floor((i / (temps.length - 1)) * (w - px));
+        const y = Math.floor(h - ((temp - min) / range) * (h - px));
+        ctx.fillRect(x, y, px, h - y);
+      });
+
+      ctx.fillStyle = '#fff';
+      let prevX = 0, prevY = 0;
+      temps.forEach((temp, i) => {
+        const x = Math.floor((i / (temps.length - 1)) * (w - px));
+        const y = Math.floor(h - ((temp - min) / range) * (h - px));
+        if (i > 0) {
+          for (let sx = Math.min(prevX, x); sx <= Math.max(prevX, x); sx += px) ctx.fillRect(sx, prevY, px, px);
+          for (let sy = Math.min(prevY, y); sy <= Math.max(prevY, y); sy += px) ctx.fillRect(x, sy, px, px);
+        }
+        ctx.fillRect(x - 1, y - 1, px + 2, px + 2);
+        prevX = x; prevY = y;
+      });
+    }
+
+    // Log
+    function addLog() {
+      const display = STATE_DISPLAY[currentStateName] || { label: 'UNKNOWN' };
+      logHistory.unshift({
+        time: new Date(), state: display.label,
+        temp: data.temperature, pressure: data.pressure, rain: data.rain, wind: data.wind
+      });
+      if (logHistory.length > 30) logHistory.pop();
+
+      const container = document.getElementById('log');
+      container.innerHTML = '';
+      logHistory.forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'log-row';
+        const t = e.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const temp = e.temp !== null ? e.temp.toFixed(1) + 'C' : '--';
+        const pres = e.pressure !== null ? e.pressure.toFixed(0) : '--';
+        row.innerHTML = `<span class="log-time">${t}</span><span class="log-state">${e.state}</span><span class="log-data">${temp} | ${pres}hPa | ${e.rain ? 'R' : '-'} | ${e.wind ? 'W' : '-'}</span>`;
+        container.appendChild(row);
+      });
+    }
+
+    window.addEventListener('resize', drawChart);
+
+    buildGallery();
+    mqttConnect();
+  </script>
+</body>
+
+</html>

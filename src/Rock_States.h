@@ -1404,13 +1404,17 @@ enum Rock_States{
 
 	//These next ones are joke faces that will show up randomly (thats the idea, might change it later)
 
+	JOKE_START, //This is just a marker to know where the joke faces start, it doesn't actually do anything
+
 	POU,
 	ALIEN,
 	ROBLOX,
 	ROCK_ON,
 	NERD,
 	DOG,
-	COMPLIMENT
+	COMPLIMENT,
+
+	COUNT //This is just to have an easy count
 
 
 

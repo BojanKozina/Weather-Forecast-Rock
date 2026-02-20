@@ -4,6 +4,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "Rock_States.h"
+#include "Sensors.h"
+#include "Network.h"
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -12,15 +14,24 @@
 
 class Rock
 {
+    Sensors theSensors;
+    Adafruit_SSD1306 theDisplay;
+    Network theNetwork;
 
-    Adafruit_SSD1306 display;
+    int displayCycles{0};
 
 public:
-    Rock() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET) {}
+    Rock() : theDisplay(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET) {}
 
-    void begin()
+    void begin(const char *ssid, const char *password, const char *mqttServer)
     {
-        if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
+
+        Wire.begin();
+
+        theSensors.begin();
+        theNetwork.setCredentials(ssid, password, mqttServer);
+
+        if (!theDisplay.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
         {
             Serial.println(F("SSD1306 allocation failed"));
             for (;;)
@@ -29,8 +40,19 @@ public:
 
         randomSeed(esp_random());
 
-        display.clearDisplay();
-        display.display();
+        theSensors.setAll();
+
+        theDisplay.clearDisplay();
+        theDisplay.display();
+
+        if (theNetwork.connectWiFi())
+            theNetwork.connectMQTT();
+        else{
+            showFace(Rock_States::NO_WIFI); // show the dino!
+            delay(5000);
+        }
+
+        theNetwork.publishData(theSensors.getTemperature(), theSensors.getPressure(), theSensors.getLightLevel(), theSensors.getIsRaining(), theSensors.getIsWindy(), determineState());
     }
 
     // Based on the enum in Rock_States.h its going to return one of the bitmaps (ie the face of the rock)
@@ -85,47 +107,131 @@ public:
         }
     }
 
+    Rock_States determineState()
+    {
+
+        // Error state
+        if (theSensors.getTemperature() == -999)
+            return Rock_States::NEUTRAL;
+
+        // Night time - sleeping
+        if (theSensors.getLightLevel() < 5)
+            return Rock_States::SLEEPING;
+
+        // Snow: rain + freezing
+        if (theSensors.getIsRaining() && theSensors.getTemperature() < -5)
+            return Rock_States::SNOWING;
+
+        // Wind + rain combo
+        if (theSensors.getIsWindy() && theSensors.getIsRaining())
+            return Rock_States::WINDY_RAIN;
+
+        // Cold + rain combo
+        if (theSensors.getIsRaining() && theSensors.getTemperature() < 10)
+            return Rock_States::COLD_RAIN;
+
+        // Just raining
+        if (theSensors.getIsRaining())
+            return Rock_States::RAINING;
+
+        // Just windy
+        if (theSensors.getIsWindy())
+            return Rock_States::WINDY;
+
+        // Very hot
+        if (theSensors.getTemperature() > 32)
+            return Rock_States::HOT;
+
+        // Warm and sunny
+        if (theSensors.getTemperature() > 25 && theSensors.getLightLevel() > 80)
+            return Rock_States::GLASSES;
+
+        // Cold
+        if (theSensors.getTemperature() < 10)
+            return Rock_States::COLD;
+
+        // Nice weather
+        if (theSensors.getLightLevel() > 80 && theSensors.getTemperature() > 20)
+            return Rock_States::HAPPY;
+
+        // Default
+        return Rock_States::NEUTRAL;
+    }
+
+    void update()
+    {
+        if (displayCycles >= 2)
+        {
+            theSensors.setAll();
+            theSensors.printAll();
+            displayCycles = 0;
+        }
+
+        Rock_States currentState;
+
+
+        //This part is totally uncessary and its just used to show the joke faces randomly
+        int easterEggChance = random(10);
+        if (easterEggChance == 0)
+        {
+            int randomJokeFace = random(static_cast<int>(Rock_States::JOKE_START), static_cast<int>(Rock_States::COUNT));
+            currentState = static_cast<Rock_States>(randomJokeFace);
+        }
+        else
+        {
+            currentState = determineState();
+        }
+
+        showFace(currentState);
+        theNetwork.publishData(theSensors.getTemperature(), theSensors.getPressure(), theSensors.getLightLevel(), theSensors.getIsRaining(), theSensors.getIsWindy(), currentState);
+        delay(4000);
+
+        showData(theSensors.getTemperature(), theSensors.getPressure(), theSensors.getLightLevel(), theSensors.getIsRaining());
+        displayCycles++;
+        delay(5000);
+    }
+
     void showFace(Rock_States state)
     {
         const unsigned char *face = getFaceBitmap(state);
 
-        display.clearDisplay();
+        theDisplay.clearDisplay();
 
-        display.drawBitmap(0, 0, face, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
+        theDisplay.drawBitmap(0, 0, face, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
 
-        display.display();
+        theDisplay.display();
     }
 
     void shuffleStates()
     {
-        int randomFace = random(19);
+        int randomFace = random(static_cast<int>(Rock_States::COUNT));
         showFace(static_cast<Rock_States>(randomFace));
         delay(3000);
     }
 
-    void showData(float temperature, float light, float pressure, bool rain)
+    void showData(float temperature, float pressure, float lightLevel, bool isRaining)
     {
-        display.clearDisplay();
-        display.setTextSize(1);
+        theDisplay.clearDisplay();
+        theDisplay.setTextSize(1);
 
-        display.drawBitmap(0, 0, Data_Screen, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
-        display.setTextColor(SSD1306_WHITE);
+        theDisplay.drawBitmap(0, 0, Data_Screen, SCREEN_WIDTH, SCREEN_HEIGHT, SSD1306_WHITE);
+        theDisplay.setTextColor(SSD1306_WHITE);
 
-        display.setCursor(45, 5);
-        display.print(temperature, 1);
-        display.print("  C");
+        theDisplay.setCursor(45, 5);
+        theDisplay.print(temperature, 1);
+        theDisplay.print("  C");
 
-        display.setCursor(45, 21);
-        display.print(pressure, 0);
-        display.print(" hPa");
+        theDisplay.setCursor(45, 21);
+        theDisplay.print(pressure, 0);
+        theDisplay.print(" hPa");
 
-        display.setCursor(45, 37);
-        display.print(light, 1);
-        display.print("  %");
+        theDisplay.setCursor(45, 37);
+        theDisplay.print(lightLevel, 1);
+        theDisplay.print("  %");
 
-        display.setCursor(45, 53);
-        display.print(rain ? "Raining" : "No Rain");
+        theDisplay.setCursor(45, 53);
+        theDisplay.print(isRaining ? "Raining" : "No Rain");
 
-        display.display();
+        theDisplay.display();
     }
 };
