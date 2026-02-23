@@ -30,6 +30,7 @@ public:
 
         theSensors.begin();
         theNetwork.setCredentials(ssid, password, mqttServer);
+        theDisplay.setRotation(2);
 
         while (!theDisplay.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
         {
